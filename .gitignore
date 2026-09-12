@@ -33,3 +33,4 @@ Thumbs.db
 
 # Kubernetes local
 *.kubeconfig
+storage/
