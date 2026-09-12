@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-ink-950 text-slate-300 font-body antialiased;
+  background-image:
+    radial-gradient(1200px 800px at 85% -10%, rgba(37, 99, 235, 0.12), transparent 60%),
+    radial-gradient(1000px 700px at -10% 20%, rgba(14, 165, 233, 0.08), transparent 55%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.25);
+  color: #f0f9ff;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #04060e;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e2b4a;
+  border-radius: 8px;
+  border: 2px solid #04060e;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2b3f61;
+}
+
+@layer components {
+  .glass {
+    @apply border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl;
+  }
+
+  .glass-strong {
+    @apply border border-white/[0.08] bg-ink-800/70 backdrop-blur-2xl shadow-panel;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-cyan-300 via-sky-400 to-blue-500 bg-clip-text text-transparent;
+  }
+
+  .text-glow {
+    color: #e2e8f0;
+    text-shadow: 0 0 34px rgba(34, 211, 238, 0.22);
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .bg-grid-fade {
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 75%);
+  }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 45%, transparent);
+    mask-image: linear-gradient(to bottom, black 45%, transparent);
+  }
+
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+
+  /* ---- data-flow connector lines ---- */
+  .flow-h {
+    background-image: linear-gradient(90deg, transparent 0%, rgba(34, 211, 238, 0.75) 50%, transparent 100%);
+    background-size: 220% 100%;
+    animation: flow-x 2.4s linear infinite;
+  }
+
+  .flow-v {
+    background-image: linear-gradient(180deg, transparent 0%, rgba(34, 211, 238, 0.75) 50%, transparent 100%);
+    background-size: 100% 220%;
+    animation: flow-y 2.4s linear infinite;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-ink-700/60;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0;
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      rgba(148, 163, 184, 0.12) 50%,
+      transparent 80%
+    );
+    animation: shimmer 1.6s linear infinite;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes flow-x {
+  to {
+    background-position: 220% 0;
+  }
+}
+
+@keyframes flow-y {
+  to {
+    background-position: 0 220%;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-16px);
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(400%);
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2.4s ease-in-out infinite;
+}
+.animate-float-y {
+  animation: float-y 7s ease-in-out infinite;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #cbd5e1;
+  -webkit-box-shadow: 0 0 0px 1000px #0d1526 inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
