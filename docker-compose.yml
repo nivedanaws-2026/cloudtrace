@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: cloudtrace-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cloudtrace_user
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: cloudtrace
+    ports:
+      - "5432:5432"
+    volumes:
+      - cloudtrace_pgdata:/var/lib/postgresql/data
+
+volumes:
+  cloudtrace_pgdata:
