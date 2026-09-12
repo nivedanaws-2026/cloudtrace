@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models
 from app.hashing import sha256_of_file, compute_event_hash
+from app.auth import get_current_user, require_role
 
 router = APIRouter()
 
@@ -42,9 +43,9 @@ def _log_custody_event(db: Session, evidence_id: uuid.UUID, actor_id: uuid.UUID,
 
 @router.post("/evidence/upload")
 async def upload_evidence(
-    uploaded_by: uuid.UUID,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role("investigator", "custodian", "admin")),
 ):
     contents = await file.read()
     file_hash = sha256_of_file(contents)
@@ -57,13 +58,13 @@ async def upload_evidence(
         filename=file.filename,
         storage_path=storage_path,
         sha256_hash=file_hash,
-        uploaded_by=uploaded_by,
+        uploaded_by=current_user.id,
     )
     db.add(evidence)
     db.commit()
     db.refresh(evidence)
 
-    _log_custody_event(db, evidence.id, uploaded_by, action="upload")
+    _log_custody_event(db, evidence.id, current_user.id, action="upload")
 
     return {
         "evidence_id": str(evidence.id),
@@ -73,7 +74,11 @@ async def upload_evidence(
 
 
 @router.post("/evidence/{evidence_id}/verify")
-def verify_evidence(evidence_id: uuid.UUID, actor_id: uuid.UUID, db: Session = Depends(get_db)):
+def verify_evidence(
+    evidence_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     evidence = db.query(models.Evidence).filter(models.Evidence.id == evidence_id).first()
     if not evidence:
         raise HTTPException(status_code=404, detail="Evidence not found")
@@ -86,7 +91,7 @@ def verify_evidence(evidence_id: uuid.UUID, actor_id: uuid.UUID, db: Session = D
 
     matches = current_hash == evidence.sha256_hash
     action = "verify" if matches else "verify_mismatch"
-    _log_custody_event(db, evidence.id, actor_id, action=action)
+    _log_custody_event(db, evidence.id, current_user.id, action=action)
 
     return {
         "evidence_id": str(evidence.id),
@@ -97,7 +102,11 @@ def verify_evidence(evidence_id: uuid.UUID, actor_id: uuid.UUID, db: Session = D
 
 
 @router.get("/evidence/{evidence_id}/custody-chain")
-def get_custody_chain(evidence_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_custody_chain(
+    evidence_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     events = (
         db.query(models.CustodyEvent)
         .filter(models.CustodyEvent.evidence_id == evidence_id)
