@@ -2,15 +2,40 @@ services:
   db:
     image: postgres:16
     container_name: cloudtrace-pg
-    restart: unless-stopped
     environment:
-      POSTGRES_USER: cloudtrace_user
-      POSTGRES_PASSWORD: devpass
       POSTGRES_DB: cloudtrace
+      POSTGRES_USER: cloudtrace
+      POSTGRES_PASSWORD: cloudtrace
     ports:
       - "5432:5432"
     volumes:
-      - cloudtrace_pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloudtrace-backend
+    depends_on:
+      - db
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/storage:/app/storage
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cloudtrace-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
 
 volumes:
-  cloudtrace_pgdata:
+  postgres_data:
