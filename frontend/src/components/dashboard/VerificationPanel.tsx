@@ -77,7 +77,7 @@ export function VerificationPanel({
                   state === "success" ? "text-emerald-300" : "text-rose-300"
                 }`}
               >
-                {state === "success" ? "INTEGRITY INTACT" : "INTEGRITY COMPROMISED"}
+                {state === "success" ? "INTEGRITY INTACT" : "MISMATCH DETECTED"}
               </h3>
               <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-400">
                 {state === "success" ? (
@@ -90,7 +90,8 @@ export function VerificationPanel({
                 ) : (
                   <>
                     The current evidence does not match its original cryptographic
-                    fingerprint. The file may have been modified.
+                    fingerprint. The file has likely been modified since it was
+                    secured.
                   </>
                 )}
               </p>

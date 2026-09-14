@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import AuthGuard from "@/components/layout/AuthGuard";
+import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import DashboardShell from "@/components/layout/DashboardShell";
 
 export const metadata: Metadata = {
@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <AuthGuard>
+    <ProtectedRoute>
       <DashboardShell>{children}</DashboardShell>
-    </AuthGuard>
+    </ProtectedRoute>
   );
 }

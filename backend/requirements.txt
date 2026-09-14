@@ -9,3 +9,11 @@ bcrypt==4.0.1
 python-jose[cryptography]==3.3.0
 python-multipart==0.0.12
 email-validator==2.2.0
+
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNzgyMTNjMC1kMTllLTQ5Y2EtYmNjMi02ZWY3ZDM2OGJkZTciLCJyb2xlIjoiYWRtaW4iLCJleHAiOjE3ODkzMjI5MTh9.7Y3zWtE8y_tv2S9m6a9ClfF1qu2-WCMktZi0UyryUOA",
+  "token_type": "bearer"
+}
+
+ADMIN_EMAIL=admin@cloudtrace.local
+ADMIN_PASSWORD=Nivedanadmin@2007

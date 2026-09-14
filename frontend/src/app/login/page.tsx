@@ -4,45 +4,60 @@ import { useState, useCallback, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { LogIn, ShieldCheck, Eye, EyeOff } from "lucide-react";
-import { useAuth, errorMessage } from "@/context/AuthContext";
-import { useToast } from "@/context/ToastContext";
+import { LogIn, ShieldCheck, Eye, EyeOff, Hourglass, ShieldX } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { Field, Input } from "@/components/ui/Field";
 import Button from "@/components/ui/Button";
+import { ApiError } from "@/lib/api";
 import PipelineVisual from "@/components/landing/PipelineVisual";
 
 function LoginForm() {
   const search = useSearchParams();
   const { login, status, user } = useAuth();
-  const toast = useToast();
   const router = useRouter();
+
+  const expired = search.get("expired") === "1";
+  const next = search.get("next");
 
   useEffect(() => {
     if (status === "authenticated" && user) {
-      router.replace(search.get("next") ?? "/dashboard");
+      router.replace(next ?? "/dashboard");
     }
-  }, [status, user, router, search]);
+  }, [status, user, router, next]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
       setLoading(true);
+      setFormError(null);
       try {
-        await login(email, password, remember);
-        toast.success("Welcome back", "Session authenticated.");
+        await login(email, password, true);
+        // Redirect happens in the effect above once status flips.
       } catch (error) {
-        toast.error("Login failed", errorMessage(error));
+        if (error instanceof ApiError) {
+          if (error.status === 403 && error.detail?.includes("pending admin approval")) {
+            setFormError(
+              "Your account is pending admin approval. An administrator must approve your account before you can log in.",
+            );
+          } else if (error.status === 401) {
+            setFormError("Incorrect email or password.");
+          } else {
+            setFormError(error.detail ?? error.message);
+          }
+        } else {
+          setFormError("Something went wrong. Please try again.");
+        }
       } finally {
         setLoading(false);
       }
     },
-    [email, password, remember, login, toast],
+    [login, email, password],
   );
 
   return (
@@ -51,7 +66,6 @@ function LoginForm() {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_10%_40%,rgba(14,165,233,0.12),transparent)]" />
 
       <div className="relative z-10 mx-auto grid min-h-screen max-w-6xl items-center px-5 py-10 lg:grid-cols-2 lg:gap-10 lg:px-8">
-        {/* Left branding */}
         <motion.div
           initial={{ opacity: 0, x: -40 }}
           animate={{ opacity: 1, x: 0 }}
@@ -61,7 +75,6 @@ function LoginForm() {
           <PipelineVisual />
         </motion.div>
 
-        {/* Right form card */}
         <motion.div
           initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
@@ -88,6 +101,17 @@ function LoginForm() {
                 Sign in to your CloudTrace account
               </p>
             </div>
+
+            {expired && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-5 flex items-start gap-2.5 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3.5 py-2.5 text-xs leading-relaxed text-amber-200"
+              >
+                <Hourglass className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                Your session expired, please log in again.
+              </motion.div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <Field label="Email" htmlFor="email">
@@ -129,18 +153,21 @@ function LoginForm() {
                 </div>
               </Field>
 
-              <div className="flex items-center gap-3 py-1">
-                <label className="relative inline-flex cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={remember}
-                    onChange={(e) => setRemember(e.target.checked)}
-                    className="peer sr-only"
-                  />
-                  <span className="h-4 w-4 rounded border border-white/20 bg-ink-900 transition checked:bg-cyan-500 peer-checked:border-cyan-400/80" />
-                  <span className="text-xs text-slate-400">Remember me</span>
-                </label>
-              </div>
+              {formError && (
+                <motion.div
+                  key={formError}
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2.5 rounded-lg border border-rose-400/25 bg-rose-400/[0.07] px-3.5 py-2.5 text-xs leading-relaxed text-rose-200"
+                >
+                  {formError.includes("pending admin approval") ? (
+                    <Hourglass className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+                  ) : (
+                    <ShieldX className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+                  )}
+                  {formError}
+                </motion.div>
+              )}
 
               <Button
                 type="submit"
@@ -164,7 +191,7 @@ function LoginForm() {
           </div>
 
           <p className="mt-5 text-center text-[11px] text-slate-600">
-            JWT-secured · Role-based access · AWS IAM-controlled
+            JWT-secured · Role-based access · New accounts require admin approval
           </p>
         </motion.div>
       </div>

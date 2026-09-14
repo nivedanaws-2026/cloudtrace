@@ -115,13 +115,13 @@ function MiniHash({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-export default function CustodyTimeline({
-  events,
-  fromDemo,
-}: {
-  events: CustodyEvent[];
-  fromDemo: boolean;
-}) {
+function actorLabel(event: CustodyEvent): string {
+  if (event.actor_email) return event.actor_email;
+  const hex = String(event.actor_id).replace(/-/g, "").slice(0, 8).toUpperCase();
+  return `user_${hex}`;
+}
+
+export default function CustodyTimeline({ events }: { events: CustodyEvent[] }) {
   if (events.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-white/10 py-14 text-center">
@@ -134,14 +134,6 @@ export default function CustodyTimeline({
     <div className="relative">
       <div className="absolute bottom-4 left-[19px] top-4 w-px bg-white/[0.07]" />
 
-      {fromDemo && (
-        <p className="mb-4 rounded-lg border border-amber-400/15 bg-amber-400/[0.06] px-3 py-2 text-[11px] text-amber-200/90">
-          Showing a demo custody chain — connect{" "}
-          <code className="font-mono">GET /evidence/&#123;id&#125;/custody-chain</code> for the live
-          ledger.
-        </p>
-      )}
-
       <div className="space-y-8">
         {events.map((event, i) => {
           const meta = ACTION_META[event.action] ?? ACTION_META.access;
@@ -149,7 +141,7 @@ export default function CustodyTimeline({
           const isGenesis = i === 0;
           return (
             <motion.div
-              key={event.id ?? i}
+              key={`${event.timestamp}-${i}`}
               initial={{ opacity: 0, y: 28 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
@@ -180,9 +172,9 @@ export default function CustodyTimeline({
                     Actor
                   </span>
                   <span className="h-3 w-px bg-white/10" />
-                  {event.actor}
+                  <span className="truncate">{actorLabel(event)}</span>
                   <span className="font-mono text-[10px] text-slate-600">
-                    ({event.actor_id.slice(0, 8)})
+                    ({String(event.actor_id).slice(0, 8)})
                   </span>
                 </p>
 

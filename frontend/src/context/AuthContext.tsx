@@ -36,6 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
 
+  // Rehydrate the session from stored token on first mount. Expired tokens
+  // are dropped by getToken() so a stale session never reaches the dashboard.
   useEffect(() => {
     const stored = getToken();
     if (!stored) {
@@ -79,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
-  // If any API call returns 401, the ApiError helper already clears the token —
+  // If any API call returns 401, apiFetch already cleared the token —
   // reflect that in the session state here.
   useEffect(() => {
     if (!token && status === "authenticated") {

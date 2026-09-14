@@ -1,6 +1,6 @@
 export type Role = "investigator" | "custodian" | "auditor" | "admin";
 
-export type IntegrityStatus = "intact" | "compromised";
+export type IntegrityStatus = "intact" | "mismatch" | "unverified";
 
 export interface SessionUser {
   id: string;
@@ -12,10 +12,8 @@ export interface UserRecord {
   id: string;
   email: string;
   role: Role;
-  displayName?: string;
+  is_active: boolean;
   created_at: string;
-  lastActive?: string;
-  status?: "active" | "suspended";
 }
 
 export interface AuthResponse {
@@ -26,20 +24,17 @@ export interface AuthResponse {
 export interface SignupInput {
   email: string;
   password: string;
-  role: Role;
 }
 
 export interface EvidenceRecord {
   id: string;
   filename: string;
-  fileType: string;
-  fileSize: number;
   sha256_hash: string;
-  uploadedBy: string;
-  uploadedByName: string;
+  uploaded_by: string;
+  uploaded_email: string;
   uploaded_at: string;
   status: IntegrityStatus;
-  source: "api" | "demo";
+  source?: "api" | "session" | "demo";
 }
 
 export type CustodyAction =
@@ -53,10 +48,9 @@ export type CustodyAction =
   | "destroy";
 
 export interface CustodyEvent {
-  id?: string;
   action: CustodyAction;
-  actor: string;
   actor_id: string;
+  actor_email?: string;
   timestamp: string;
   event_hash: string;
   prev_event_hash: string | null;
@@ -67,7 +61,6 @@ export interface VerifyResult {
   original_hash: string;
   current_hash: string;
   integrity_intact: boolean;
-  current_file_name?: string;
 }
 
 export interface EvidenceUploadResponse {
@@ -82,18 +75,17 @@ export interface FileMeta {
   type: string;
 }
 
+export interface SessionUpload {
+  evidence_id: string;
+  filename: string;
+  sha256_hash: string;
+}
+
 export interface SystemComponent {
   id: string;
   label: string;
   status: "operational" | "degraded" | "offline";
   note?: string;
-}
-
-export interface DashboardStats {
-  total: number;
-  verified: number;
-  compromised: number;
-  custodyEvents: number;
 }
 
 export type UploadStage = "uploading" | "hashing" | "securing" | "custody" | "complete";

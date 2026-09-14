@@ -6,12 +6,12 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   LayoutGrid,
-  FileStack,
   UploadCloud,
   Link2,
-  ScanSearch,
   Users,
-  Settings,
+  Clock3,
+  ScanSearch,
+  Scale,
   LogOut,
   ShieldCheck,
   Menu,
@@ -27,52 +27,70 @@ interface NavItem {
   href: string;
   label: string;
   icon: ReactNode;
-  roles?: Role[];
+  roles: Role[];
 }
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: <LayoutGrid className="h-4 w-4" /> },
-  { href: "/dashboard/evidence", label: "Evidence", icon: <FileStack className="h-4 w-4" /> },
   {
-    href: "/dashboard/evidence/upload",
-    label: "Upload Evidence",
-    icon: <UploadCloud className="h-4 w-4" />,
-    roles: ["investigator", "custodian", "admin"],
+    href: "/dashboard",
+    label: "Overview",
+    icon: <LayoutGrid className="h-4 w-4" />,
+    roles: ["admin", "investigator", "custodian", "auditor"],
   },
   {
-    href: "/dashboard/evidence",
-    label: "Custody Chain",
-    icon: <Link2 className="h-4 w-4" />,
-    custody: true,
-  } as NavItem & { custody: boolean },
-  {
-    href: "/dashboard/verify",
-    label: "Verification",
-    icon: <ScanSearch className="h-4 w-4" />,
+    href: "/dashboard/pending-approvals",
+    label: "Pending Approvals",
+    icon: <Clock3 className="h-4 w-4" />,
+    roles: ["admin"],
   },
   {
     href: "/dashboard/users",
-    label: "Users",
+    label: "All Users",
     icon: <Users className="h-4 w-4" />,
     roles: ["admin"],
   },
-  { href: "/dashboard/settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
-] as NavItem[];
+  {
+    href: "/dashboard/all-evidence",
+    label: "All Evidence",
+    icon: <Scale className="h-4 w-4" />,
+    roles: ["admin", "auditor"],
+  },
+  {
+    href: "/dashboard/custody-chain",
+    label: "Custody Chain Viewer",
+    icon: <Link2 className="h-4 w-4" />,
+    roles: ["auditor"],
+  },
+  {
+    href: "/dashboard/my-evidence",
+    label: "My Evidence",
+    icon: <Scale className="h-4 w-4" />,
+    roles: ["investigator", "custodian"],
+  },
+  {
+    href: "/dashboard/upload",
+    label: "Upload Evidence",
+    icon: <UploadCloud className="h-4 w-4" />,
+    roles: ["investigator", "custodian"],
+  },
+];
 
 const TITLES: Record<string, string> = {
   "/dashboard": "Overview",
-  "/dashboard/evidence": "Evidence",
-  "/dashboard/evidence/upload": "Upload Evidence",
-  "/dashboard/verify": "Verification",
-  "/dashboard/users": "Users",
-  "/dashboard/settings": "Settings",
+  "/dashboard/pending-approvals": "Pending Approvals",
+  "/dashboard/users": "All Users",
+  "/dashboard/all-evidence": "All Evidence",
+  "/dashboard/custody-chain": "Custody Chain Viewer",
+  "/dashboard/my-evidence": "My Evidence",
+  "/dashboard/upload": "Upload Evidence",
 };
 
-function shouldShow(item: NavItem, role: Role): boolean {
-  if ("custody" in item && item.custody) return true;
-  if (item.roles) return item.roles.includes(role);
-  return true;
-}
+const ROLE_SUBTITLES: Record<Role, string> = {
+  admin: "Full visibility · approve users & assign roles",
+  investigator: "Upload and verify your own evidence",
+  custodian: "Handle custody of your evidence items",
+  auditor: "Read-only · full compliance visibility",
+};
 
 function NavLinks({
   role,
@@ -82,17 +100,14 @@ function NavLinks({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const items = NAV.filter((item) => item.roles.includes(role));
   return (
     <>
-      {NAV.filter((item) => shouldShow(item, role)).map((item) => {
-        const active =
-          pathname === item.href ||
-          (item.href === "/dashboard/evidence" &&
-            pathname.startsWith("/dashboard/evidence") &&
-            !pathname.includes("/upload"));
+      {items.map((item) => {
+        const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
         return (
           <Link
-            key={item.label}
+            key={item.href}
             href={item.href}
             onClick={onNavigate}
             className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors duration-200 ${
@@ -103,7 +118,7 @@ function NavLinks({
           >
             {active && (
               <motion.span
-                layoutId={`nav-${item.label}`}
+                layoutId={`nav-${item.href}`}
                 className="absolute inset-0 rounded-lg border border-cyan-400/20 bg-gradient-to-r from-cyan-400/[0.08] to-transparent"
                 transition={{ type: "spring", stiffness: 400, damping: 34 }}
               />
@@ -184,18 +199,12 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   }, [mobileOpen]);
 
   const title = useMemo(() => {
-    if (pathname.startsWith("/dashboard/evidence/") && pathname.endsWith("/custody")) {
-      return "Custody Chain";
-    }
-    if (pathname.startsWith("/dashboard/evidence/") && !pathname.includes("/upload")) {
-      return "Evidence Details";
-    }
+    if (pathname.startsWith("/dashboard/evidence/")) return "Evidence Details";
     return TITLES[pathname] ?? "CloudTrace";
   }, [pathname]);
 
   return (
     <div className="min-h-screen bg-ink-950">
-      {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-white/[0.06] bg-ink-900/80 backdrop-blur-2xl lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-white/[0.06] px-5">
           <Link href="/" className="flex items-center gap-2.5">
@@ -213,7 +222,6 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         <ProfileFooter />
       </aside>
 
-      {/* Mobile drawer */}
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -259,7 +267,6 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Main column */}
       <div className="flex min-h-screen flex-col lg:pl-64">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-white/[0.06] bg-ink-950/70 px-4 backdrop-blur-xl sm:px-6">
           <button
@@ -275,18 +282,26 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
             </h1>
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <div className="hidden items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 sm:flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse-soft" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">
-                Systems Online
-              </span>
-            </div>
             {user && (
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold ${roleColors[user.role]}`}
-              >
-                {user.email.slice(0, 1).toUpperCase()}
-              </div>
+              <>
+                <div className="hidden items-center gap-1.5 sm:flex">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                    Signed in as
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold uppercase tracking-widest ${
+                      roleColors[user.role].split(" ")[0]
+                    }`}
+                  >
+                    {roleLabel(user.role)}
+                  </span>
+                </div>
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold ${roleColors[user.role]}`}
+                >
+                  {user.email.slice(0, 1).toUpperCase()}
+                </div>
+              </>
             )}
           </div>
         </header>
@@ -302,6 +317,13 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
           </motion.div>
         </main>
       </div>
+
+      {/* Role subtitle strip */}
+      {user && (
+        <div className="pointer-events-none fixed bottom-4 right-4 z-20 hidden rounded-full border border-white/[0.06] bg-ink-900/80 px-3.5 py-1.5 text-[10px] font-medium uppercase tracking-widest text-slate-500 backdrop-blur-xl lg:block">
+          {ROLE_SUBTITLES[user.role]}
+        </div>
+      )}
     </div>
   );
 }

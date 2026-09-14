@@ -7,13 +7,13 @@ from pydantic import BaseModel, EmailStr
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    role: str
 
 
 class UserOut(BaseModel):
     id: uuid.UUID
     email: EmailStr
     role: str
+    is_active: bool
     created_at: datetime
 
     class Config:

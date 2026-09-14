@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { IntegrityStatus, Role } from "@/lib/types";
 import { roleColors, roleLabel } from "@/lib/auth-store";
-import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { ShieldCheck, ShieldAlert, HelpCircle } from "lucide-react";
 
 export function Badge({
   children,
@@ -19,22 +19,30 @@ export function Badge({
   );
 }
 
+const STATUS_META: Record<IntegrityStatus, { label: string; icon: ReactNode; cls: string }> = {
+  intact: {
+    label: "Integrity Intact",
+    icon: <ShieldCheck className="h-3 w-3" />,
+    cls: "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
+  },
+  mismatch: {
+    label: "Mismatch Detected",
+    icon: <ShieldAlert className="h-3 w-3" />,
+    cls: "border-rose-400/25 bg-rose-400/10 text-rose-300",
+  },
+  unverified: {
+    label: "Unverified",
+    icon: <HelpCircle className="h-3 w-3" />,
+    cls: "border-slate-500/30 bg-slate-500/10 text-slate-400",
+  },
+};
+
 export function IntegrityBadge({ status }: { status: IntegrityStatus }) {
-  const intact = status === "intact";
+  const meta = STATUS_META[status] ?? STATUS_META.unverified;
   return (
-    <Badge
-      className={
-        intact
-          ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
-          : "border-rose-400/25 bg-rose-400/10 text-rose-300"
-      }
-    >
-      {intact ? (
-        <ShieldCheck className="h-3 w-3" />
-      ) : (
-        <ShieldAlert className="h-3 w-3" />
-      )}
-      {intact ? "Integrity Intact" : "Integrity Compromised"}
+    <Badge className={meta.cls}>
+      {meta.icon}
+      {meta.label}
     </Badge>
   );
 }
