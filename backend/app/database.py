@@ -7,7 +7,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg2://cloudtrace:cloudtrace@db:5432/cloudtrace",
+    "postgresql+psycopg2://cloudtrace:cloudtrace@localhost:5432/cloudtrace",
 )
 
 engine = create_engine(DATABASE_URL)
