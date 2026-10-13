@@ -98,6 +98,8 @@ export async function apiFetch<T>(
 
 export interface HealthCheck {
   status: string;
+  database?: string;
+  storage?: string;
 }
 
 export const HealthApi = {

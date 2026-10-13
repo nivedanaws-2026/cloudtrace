@@ -32,7 +32,7 @@ export default function EvidenceTable({
         !q ||
         r.filename.toLowerCase().includes(q) ||
         r.id.toLowerCase().includes(q) ||
-        r.uploaded_email.toLowerCase().includes(q);
+        (r.uploaded_email ?? "").toLowerCase().includes(q);
       const matchesStatus = status === "all" || r.status === status;
       return matchesQuery && matchesStatus;
     });

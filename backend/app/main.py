@@ -7,13 +7,13 @@ from app.database import engine, Base, SessionLocal
 from app import models  # noqa: F401  (import so tables register with Base)
 from app.auth import hash_password
 from app.auth_routes import router as auth_router
-from app.evidence_routes import router as evidence_router
+from app.evidence_routes import router as evidence_router, STORAGE_DIR
 
 app = FastAPI(title="CloudTrace API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js dev server
+    allow_origins=[o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -56,4 +56,9 @@ def on_startup():
 def health_check():
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
-    return {"status": "ok"}
+    storage_ok = os.path.isdir(STORAGE_DIR) and os.access(STORAGE_DIR, os.W_OK)
+    return {
+        "status": "ok",
+        "database": "ok",
+        "storage": "ok" if storage_ok else "error",
+    }

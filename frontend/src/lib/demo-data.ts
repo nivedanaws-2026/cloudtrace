@@ -16,9 +16,11 @@ export function demoStats(evidence: EvidenceRecord[]): {
 }
 
 export function demoSystemComponents(
-  health: { status: string } | null,
+  health: { status: string; database?: string; storage?: string } | null,
 ): SystemComponent[] {
   const apiOk = health?.status === "ok";
+  const dbOk = apiOk && health?.database === "ok";
+  const storageOk = apiOk && health?.storage === "ok";
   return [
     {
       id: "api",
@@ -29,14 +31,14 @@ export function demoSystemComponents(
     {
       id: "db",
       label: "Database",
-      status: apiOk ? "operational" : "degraded",
+      status: dbOk ? "operational" : apiOk ? "degraded" : "offline",
       note: "PostgreSQL",
     },
     {
       id: "storage",
       label: "Storage",
-      status: apiOk ? "operational" : "degraded",
-      note: "Evidence vault",
+      status: storageOk ? "operational" : apiOk ? "degraded" : "offline",
+      note: "Evidence store",
     },
     {
       id: "auth",

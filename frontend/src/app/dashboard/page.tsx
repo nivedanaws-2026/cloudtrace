@@ -1,225 +1,295 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Users, ShieldOff, RefreshCw, Clock3 } from "lucide-react";
-import { AdminApi } from "@/lib/api";
-import { ApiError } from "@/lib/api";
-import { useToast } from "@/context/ToastContext";
+import {
+  ArrowRight,
+  Clock3,
+  Users,
+  Scale,
+  FileStack,
+  UploadCloud,
+  Link2,
+  Activity,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { RoleBadge } from "@/components/ui/Badge";
-import RoleGuard from "@/components/layout/RoleGuard";
-import Button from "@/components/ui/Button";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { useToast } from "@/context/ToastContext";
+import SystemStatus from "@/components/dashboard/SystemStatus";
 import { PageTransition } from "@/components/ui/Motion";
-import { EmptyState, ErrorBanner } from "@/components/ui/StatePanels";
-import { formatDateTime } from "@/lib/format";
-import type { Role, UserRecord } from "@/lib/types";
+import { ErrorBanner } from "@/components/ui/StatePanels";
+import { getSessionUploads } from "@/lib/evidence-service";
+import { HealthApi } from "@/lib/api";
+import { demoSystemComponents } from "@/lib/demo-data";
+import type { Role, SystemComponent } from "@/lib/types";
+import { roleColors } from "@/lib/auth-store";
 
-const ROLES: Role[] = ["investigator", "custodian", "auditor", "admin"];
+const ROLE_INTRO: Record<
+  Role,
+  { title: string; description: string; badge: string }
+> = {
+  admin: {
+    title: "Full visibility",
+    description:
+      "Approve new users, assign roles, and inspect every piece of evidence on the platform.",
+    badge: "Administrator",
+  },
+  investigator: {
+    title: "Investigator workspace",
+    description:
+      "Upload evidence, then view and verify only the items you submitted.",
+    badge: "Investigator",
+  },
+  custodian: {
+    title: "Custodian workspace",
+    description:
+      "Handle custody of the evidence you uploaded — upload, inspect, and verify your items.",
+    badge: "Custodian",
+  },
+  auditor: {
+    title: "Read-only compliance view",
+    description:
+      "Full visibility across all evidence and every custody chain, for independent verification.",
+    badge: "Auditor",
+  },
+};
 
-export default function UsersPage() {
+function SectionLink({
+  href,
+  icon,
+  title,
+  desc,
+  delay,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  delay: number;
+}) {
+  return (
+    <Link
+      href={href}
+      className="glass group relative block overflow-hidden rounded-2xl p-5 transition-all duration-300 hover:border-cyan-400/25 hover:shadow-glow-sm"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300">
+          {icon}
+        </div>
+        <ArrowRight className="h-4 w-4 text-slate-600 transition-all duration-300 group-hover:translate-x-1 group-hover:text-cyan-300" />
+      </div>
+      <p className="mt-4 font-display text-sm font-semibold text-slate-100">{title}</p>
+      <p className="mt-1 text-xs leading-relaxed text-slate-500">{desc}</p>
+      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+    </Link>
+  );
+}
+
+function MiniStat({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: string;
+}) {
+  return (
+    <div className="glass card-hover rounded-2xl p-5">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          {label}
+        </p>
+        <div
+          className={`flex h-9 w-9 items-center justify-center rounded-lg border ${tone}`}
+        >
+          {icon}
+        </div>
+      </div>
+      <p className="mt-3 font-display text-3xl font-bold tracking-tight text-slate-100">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const { user } = useAuth();
   const toast = useToast();
-  const { user: me } = useAuth();
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busyEmail, setBusyEmail] = useState<string | null>(null);
-  const [offline, setOffline] = useState(false);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setOffline(false);
-    try {
-      setUsers(await AdminApi.users());
-    } catch (error) {
-      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return;
-      setOffline(true);
-      setUsers([]);
-      toast.error("Could not load users");
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const [components, setComponents] = useState<SystemComponent[]>(demoSystemComponents(null));
+  const [apiDown, setApiDown] = useState(false);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const revoke = useCallback(
-    async (email: string) => {
-      setBusyEmail(email);
+    let mounted = true;
+    (async () => {
       try {
-        const updated = await AdminApi.revoke(email);
-        setUsers((prev) => prev.map((u) => (u.email === email ? updated : u)));
-        toast.info("Access revoked", `${email} can no longer log in.`);
-      } catch (error) {
-        toast.error("Revoke failed", error instanceof ApiError ? error.message : "Please try again.");
-      } finally {
-        setBusyEmail(null);
+        const health = await HealthApi.check();
+        if (mounted) {
+          setComponents(demoSystemComponents(health));
+          setApiDown(false);
+        }
+      } catch {
+        if (mounted) {
+          setComponents(demoSystemComponents(null));
+          setApiDown(true);
+        }
+        if (!mounted) toast.error("Backend unreachable");
       }
-    },
-    [toast],
-  );
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [toast]);
 
-  const changeRole = useCallback(
-    async (email: string, role: Role) => {
-      setBusyEmail(email);
-      try {
-        // /auth/approve sets the role (and keeps an already-active user active).
-        const updated = await AdminApi.approve(email, role);
-        setUsers((prev) => prev.map((u) => (u.email === email ? updated : u)));
-        toast.success("Role updated", `${email} is now ${role}.`);
-      } catch (error) {
-        toast.error("Role change failed", error instanceof ApiError ? error.message : "Please try again.");
-      } finally {
-        setBusyEmail(null);
-      }
-    },
-    [toast],
-  );
+  if (!user) return null;
 
-  const pendingCount = users.filter((u) => !u.is_active).length;
+  const intro = ROLE_INTRO[user.role];
+  const firstName = user.email ? user.email.split("@")[0] : "";
 
   return (
-    <RoleGuard allow={["admin"]}>
-      <PageTransition>
-        <div className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="font-display text-xl font-bold tracking-tight text-white">
-                All Users
-              </h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Every account on the platform — active and waiting for approval.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {pendingCount > 0 && (
-                <Link href="/dashboard/pending-approvals">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    icon={<Clock3 className="h-3.5 w-3.5" />}
-                  >
-                    {pendingCount} pending
-                  </Button>
-                </Link>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={refresh}
-                icon={<RefreshCw className="h-3.5 w-3.5" />}
-              >
-                Refresh
-              </Button>
-            </div>
+    <PageTransition>
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p
+              className={`inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${roleColors[user.role]}`}
+            >
+              {intro.badge}
+            </p>
+            <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-white">
+              Welcome back{firstName ? `, ${firstName}` : ""}
+            </h2>
+            <p className="mt-1 text-sm text-slate-400">{intro.description}</p>
           </div>
+        </div>
 
-          {offline && (
-            <ErrorBanner message="Could not reach the backend to list users. Confirm the API is running and try again." />
+        {apiDown && (
+          <ErrorBanner message="The backend API is unreachable. Live evidence and approval data will not load until it is back." />
+        )}
+
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {user.role === "admin" && (
+            <>
+              <SectionLink
+                href="/dashboard/pending-approvals"
+                icon={<Clock3 className="h-5 w-5" />}
+                title="Pending Approvals"
+                desc="Activate and assign roles to new signups waiting for approval."
+                delay={0.05}
+              />
+              <SectionLink
+                href="/dashboard/users"
+                icon={<Users className="h-5 w-5" />}
+                title="All Users"
+                desc="Review every account and revoke access if needed."
+                delay={0.1}
+              />
+              <SectionLink
+                href="/dashboard/all-evidence"
+                icon={<Scale className="h-5 w-5" />}
+                title="All Evidence"
+                desc="Inspect every uploaded evidence record on the platform."
+                delay={0.15}
+              />
+            </>
           )}
 
-          {loading ? (
-            <div className="space-y-3">
-              {[0, 1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-14 w-full" />
-              ))}
-            </div>
-          ) : users.length === 0 && !offline ? (
-            <EmptyState
-              icon={<Users className="h-5 w-5" />}
-              title="No users yet"
-              message="Accounts will appear here as people sign up."
-            />
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-white/[0.06]">
-              <div className="hidden grid-cols-[1.5fr_0.7fr_0.8fr_0.9fr_0.6fr] gap-4 border-b border-white/[0.06] bg-ink-900/40 px-5 py-3 md:grid">
-                {["User", "Role", "Status", "Created", ""].map((h) => (
-                  <p
-                    key={h}
-                    className="text-[10px] font-bold uppercase tracking-widest text-slate-500"
-                  >
-                    {h}
-                  </p>
-                ))}
-              </div>
+          {user.role === "investigator" && (
+            <>
+              <SectionLink
+                href="/dashboard/upload"
+                icon={<UploadCloud className="h-5 w-5" />}
+                title="Upload Evidence"
+                desc="Fingerprint a new file with SHA-256 and open its custody chain."
+                delay={0.05}
+              />
+              <SectionLink
+                href="/dashboard/my-evidence"
+                icon={<FileStack className="h-5 w-5" />}
+                title="My Evidence"
+                desc="Review and verify the evidence you submitted."
+                delay={0.1}
+              />
+            </>
+          )}
 
-              <div className="divide-y divide-white/[0.05]">
-                {users.map((u, i) => (
-                  <motion.div
-                    key={u.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: Math.min(i * 0.04, 0.4) }}
-                    className="grid items-center gap-3 px-5 py-3.5 transition-colors hover:bg-ink-800/50 md:grid-cols-[1.5fr_0.7fr_0.8fr_0.9fr_0.6fr]"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-100">
-                        {u.email}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-start gap-1.5">
-                      <RoleBadge role={u.role} />
-                      <select
-                        aria-label={`Change role for ${u.email}`}
-                        value={u.role}
-                        disabled={!u.is_active || busyEmail !== null || u.email === me?.email}
-                        onChange={(e) => changeRole(u.email, e.target.value as Role)}
-                        title={
-                          u.email === me?.email
-                            ? "You can't change your own role"
-                            : !u.is_active
-                              ? "Approve this account first"
-                              : "Change role"
-                        }
-                        className="rounded-md border border-white/10 bg-ink-900 px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-400/50 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {ROLES.map((r) => (
-                          <option key={r} value={r}>
-                            {r}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <span
-                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${
-                          u.is_active ? "text-emerald-300" : "text-amber-300"
-                        }`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            u.is_active ? "bg-emerald-400" : "bg-amber-400"
-                          }`}
-                        />
-                        {u.is_active ? "Active" : "Pending"}
-                      </span>
-                    </div>
-                    <p className="hidden text-[11px] text-slate-500 md:block">
-                      {formatDateTime(u.created_at)}
-                    </p>
-                    <div className="flex justify-end">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        icon={<ShieldOff className="h-3.5 w-3.5" />}
-                        loading={busyEmail === u.email}
-                        disabled={!u.is_active || busyEmail !== null}
-                        onClick={() => revoke(u.email)}
-                        className="text-slate-500 hover:text-rose-300"
-                      >
-                        Revoke
-                      </Button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+          {user.role === "custodian" && (
+            <>
+              <SectionLink
+                href="/dashboard/upload"
+                icon={<UploadCloud className="h-5 w-5" />}
+                title="Upload Evidence"
+                desc="Accept a new item into custody and fingerprint it."
+                delay={0.05}
+              />
+              <SectionLink
+                href="/dashboard/my-evidence"
+                icon={<FileStack className="h-5 w-5" />}
+                title="My Evidence"
+                desc="Manage custody of the items you are responsible for."
+                delay={0.1}
+              />
+            </>
+          )}
+
+          {user.role === "auditor" && (
+            <>
+              <SectionLink
+                href="/dashboard/all-evidence"
+                icon={<Scale className="h-5 w-5" />}
+                title="All Evidence"
+                desc="Browse every evidence record with full read-only visibility."
+                delay={0.05}
+              />
+              <SectionLink
+                href="/dashboard/custody-chain"
+                icon={<Link2 className="h-5 w-5" />}
+                title="Custody Chain Viewer"
+                desc="Open any evidence ID and examine its tamper-evident chain."
+                delay={0.1}
+              />
+            </>
           )}
         </div>
-      </PageTransition>
-    </RoleGuard>
+
+        <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
+            <MiniStat
+              icon={<FileStack className="h-5 w-5" />}
+              label={user.role === "auditor" || user.role === "admin" ? "Evidence Session" : "My Evidence"}
+              value={String(getSessionUploads().length)}
+              tone="border-cyan-400/20 bg-cyan-400/10 text-cyan-300"
+            />
+            <MiniStat
+              icon={<UploadCloud className="h-5 w-5" />}
+              label="Role"
+              value={user.role.toUpperCase()}
+              tone="border-violet-400/20 bg-violet-400/10 text-violet-300"
+            />
+            <MiniStat
+              icon={<Activity className="h-5 w-5" />}
+              label="API Status"
+              value={apiDown ? "OFFLINE" : "ONLINE"}
+              tone={
+                apiDown
+                  ? "border-rose-400/20 bg-rose-400/10 text-rose-300"
+                  : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+              }
+            />
+          </div>
+
+          <div className="glass h-full rounded-2xl p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Activity className="h-4 w-4 text-cyan-300" />
+              <h3 className="font-display text-sm font-semibold text-slate-100">
+                System Status
+              </h3>
+            </div>
+            <SystemStatus components={components} />
+          </div>
+        </div>
+      </div>
+    </PageTransition>
   );
 }

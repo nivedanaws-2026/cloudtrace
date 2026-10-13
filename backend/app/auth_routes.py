@@ -81,6 +81,8 @@ def approve_user(
     This is the ONLY way a new user gains any access to the system."""
     if role not in ALLOWED_ROLES:
         raise HTTPException(status_code=400, detail=f"role must be one of {sorted(ALLOWED_ROLES)}")
+    if target_email == current_user.email and role != current_user.role:
+        raise HTTPException(status_code=400, detail="You cannot change your own role")
 
     target = db.query(models.User).filter(models.User.email == target_email).first()
     if not target:
@@ -123,6 +125,8 @@ def revoke_user(
     current_user: models.User = Depends(require_role("admin")),
 ):
     """Admin-only: deactivate a user, immediately blocking future logins."""
+    if target_email == current_user.email:
+        raise HTTPException(status_code=400, detail="You cannot revoke your own account")
     target = db.query(models.User).filter(models.User.email == target_email).first()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")

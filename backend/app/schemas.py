@@ -1,17 +1,18 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
+    # bcrypt only uses the first 72 bytes, so cap there instead of silently truncating.
+    password: str = Field(min_length=8, max_length=72)
 
 
 class UserOut(BaseModel):
     id: uuid.UUID
-    email: EmailStr
+    email: str          # was: EmailStr
     role: str
     is_active: bool
     created_at: datetime

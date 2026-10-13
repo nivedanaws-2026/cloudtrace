@@ -23,9 +23,14 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
 
 
 # --- JWT settings ---
-# SECRET_KEY must be set via environment variable in real use — never hardcode
-# a production secret. For local dev, .env provides a placeholder value.
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-only-insecure-secret-change-me")
+# SECRET_KEY must come from the environment. The app refuses to start without a
+# real value, so a forgotten variable can never silently fall back to a known secret.
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY or SECRET_KEY.startswith("replace-this"):
+    raise RuntimeError(
+        "JWT_SECRET_KEY is not set (or is still the placeholder). Generate one with: "
+        'python -c "import secrets; print(secrets.token_hex(32))" and put it in backend/.env'
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -59,6 +64,9 @@ def get_current_user(
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=401, detail="User no longer exists")
+    if not user.is_active:
+        # Revoked accounts lose access immediately, not when their token expires.
+        raise HTTPException(status_code=403, detail="Account is deactivated")
     return user
 
 
