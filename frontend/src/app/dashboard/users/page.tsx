@@ -10,11 +10,14 @@ import { useToast } from "@/context/ToastContext";
 import { RoleBadge } from "@/components/ui/Badge";
 import RoleGuard from "@/components/layout/RoleGuard";
 import Button from "@/components/ui/Button";
+import { Select } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { PageTransition } from "@/components/ui/Motion";
 import { EmptyState, ErrorBanner } from "@/components/ui/StatePanels";
 import { formatDateTime } from "@/lib/format";
-import type { UserRecord } from "@/lib/types";
+import type { Role, UserRecord } from "@/lib/types";
+
+const ROLES: Role[] = ["investigator", "custodian", "auditor", "admin"];
 
 export default function UsersPage() {
   const toast = useToast();
@@ -51,6 +54,25 @@ export default function UsersPage() {
         toast.info("Access revoked", `${email} can no longer log in.`);
       } catch (error) {
         toast.error("Revoke failed", error instanceof ApiError ? error.message : "Please try again.");
+      } finally {
+        setBusyEmail(null);
+      }
+    },
+    [toast],
+  );
+
+  const changeRole = useCallback(
+    async (email: string, role: Role) => {
+      setBusyEmail(email);
+      try {
+        const updated = await AdminApi.approve(email, role);
+        setUsers((prev) => prev.map((u) => (u.email === email ? updated : u)));
+        toast.success("Role updated", `${email} is now an ${role}.`);
+      } catch (error) {
+        toast.error(
+          "Role change failed",
+          error instanceof ApiError ? error.message : "Please try again.",
+        );
       } finally {
         setBusyEmail(null);
       }
@@ -140,7 +162,23 @@ export default function UsersPage() {
                       </p>
                     </div>
                     <div>
-                      <RoleBadge role={u.role} />
+                      {u.is_active ? (
+                        <Select
+                          value={u.role}
+                          disabled={busyEmail !== null}
+                          onChange={(e) => changeRole(u.email, e.target.value as Role)}
+                          aria-label={`Role for ${u.email}`}
+                          className="!w-auto !px-2.5 !py-1.5 text-xs"
+                        >
+                          {ROLES.map((r) => (
+                            <option key={r} value={r}>
+                              {r}
+                            </option>
+                          ))}
+                        </Select>
+                      ) : (
+                        <RoleBadge role={u.role} />
+                      )}
                     </div>
                     <div>
                       <span
