@@ -3,18 +3,17 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
+from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models
+from app import storage
 from app.hashing import sha256_of_file, compute_event_hash
 from app.auth import get_current_user, require_role
 
 router = APIRouter()
-
-STORAGE_DIR = os.getenv("LOCAL_STORAGE_DIR", "storage")
-os.makedirs(STORAGE_DIR, exist_ok=True)
 
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_MB", "50")) * 1024 * 1024  # default 50 MB
 
@@ -113,9 +112,7 @@ async def upload_evidence(
     # Never trust the client filename for the path: it may contain "../" etc.
     # The file is stored under a random UUID key; the display name lives in the DB.
     display_name = os.path.basename((file.filename or "").replace("\\", "/")) or "unnamed"
-    storage_path = os.path.join(STORAGE_DIR, str(uuid.uuid4()))
-    with open(storage_path, "wb") as f:
-        f.write(contents)
+    storage_path = storage.save(str(uuid.uuid4()), contents)
 
     evidence = models.Evidence(
         filename=display_name,
@@ -182,11 +179,13 @@ def verify_evidence(
     evidence = _get_evidence_or_404(db, evidence_id)
     _assert_can_access(evidence, current_user)
 
-    if not os.path.exists(evidence.storage_path):
+    try:
+        stored_bytes = storage.read(evidence.storage_path)
+    except FileNotFoundError:
         raise HTTPException(status_code=410, detail="Stored file is missing")
 
-    with open(evidence.storage_path, "rb") as f:
-        current_hash = sha256_of_file(f.read())
+    # Re-hash what is stored RIGHT NOW (from disk or S3), not a cached value.
+    current_hash = sha256_of_file(stored_bytes)
 
     matches = current_hash == evidence.sha256_hash
     action = "verify" if matches else "verify_mismatch"
@@ -210,14 +209,16 @@ def download_evidence(
     evidence = _get_evidence_or_404(db, evidence_id)
     _assert_can_access(evidence, current_user)
 
-    if not os.path.exists(evidence.storage_path):
+    try:
+        data = storage.read(evidence.storage_path)
+    except FileNotFoundError:
         raise HTTPException(status_code=410, detail="Stored file is missing")
 
     _log_custody_event(db, evidence.id, current_user.id, action="access")
-    return FileResponse(
-        evidence.storage_path,
-        filename=evidence.filename,
+    return Response(
+        content=data,
         media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(evidence.filename)}"},
     )
 
 

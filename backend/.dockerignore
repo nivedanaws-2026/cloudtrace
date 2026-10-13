@@ -1,8 +1,7 @@
-@"
 venv
 __pycache__
 *.pyc
 .env
 storage
+tests
 .git
-"@ | Set-Content backend\.dockerignore
